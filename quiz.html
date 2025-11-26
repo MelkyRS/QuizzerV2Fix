@@ -3,18 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Quiz – Quiz Kreativitas</title>
+  <title>Quiz – Quizzer</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <div class="page">
+
   <header class="site-header">
     <div class="header-left">
       <div class="logo-bubble">Q</div>
-      <div><b>Quiz Mode</b></div>
+      <div>
+        <div><b>Quizzer</b></div>
+        <div style="font-size:11px;color:#6b7280;">Mode Siswa – Mengerjakan Soal</div>
+      </div>
     </div>
     <nav class="header-nav">
-      <a href="index.html">Home</a>
+      <a href="index.html">Beranda</a>
       <a href="quiz.html" class="active">Quiz</a>
       <a href="guru.html">Guru</a>
       <a href="bantuan.html">Bantuan</a>
@@ -22,11 +26,34 @@
   </header>
 
   <main class="site-main">
-    <!-- PILIH MAPEL & LEVEL -->
+    <!-- IDENTITAS SISWA + PILIH MAPEL & LEVEL / SURVIVAL -->
     <section class="card" id="home">
       <h2>Pilih Kuis</h2>
       <p class="small" style="margin-top:4px;">
-        Pilih mata pelajaran dan level kesulitan, lalu klik <b>Mulai Quiz</b>.
+        Isi identitas singkat lalu pilih mode kuis. Data disimpan di perangkat ini saja
+        (localStorage), tidak dikirim ke server.
+      </p>
+
+      <!-- "Login" / identitas siswa -->
+      <div class="grid-2" style="margin-top:10px;">
+        <div>
+          <label for="studentName">Nama Siswa</label>
+          <input type="text" id="studentName" placeholder="Contoh: Budi" />
+        </div>
+        <div>
+          <label for="studentClass">Kelas</label>
+          <input type="text" id="studentClass" placeholder="Contoh: 7A" />
+        </div>
+      </div>
+
+      <p class="small" style="margin-top:6px;">
+        💾 Identitas ini dipakai untuk menyimpan riwayat skor kuis di perangkat kamu.
+      </p>
+
+      <hr style="margin:12px 0;border:none;border-top:1px solid #e5e7eb;">
+
+      <p class="small">
+        Pilih mata pelajaran dan level kesulitan, atau gunakan <b>Mode Survival</b>.
       </p>
 
       <div class="grid-2" style="margin-top:10px;">
@@ -44,20 +71,30 @@
         </div>
       </div>
 
-      <div class="btn-row" style="margin-top:10px;">
-        <button id="btn-start" class="btn primary">Mulai Quiz</button>
+      <div class="btn-row">
+        <button id="btn-start" class="btn primary">Mulai Quiz Biasa</button>
         <button id="btn-random" class="btn ghost">Acak Mapel</button>
       </div>
 
-      <p class="small" style="margin-top:8px;">
-        💡 Saat kamu mengulang level yang sama, soal akan diacak dan dimulai dari nomor yang berbeda.
+      <hr style="margin:14px 0;border:none;border-top:1px solid #e5e7eb;">
+
+      <h3 style="font-size:15px;margin-bottom:6px;">🛡️ Mode Survival</h3>
+      <p class="small">
+        Jawab <b>50 soal acak</b> dari semua mata pelajaran dan level.
+        Setiap soal punya batas waktu <b>1 menit</b>.
       </p>
+      <div class="btn-row">
+        <button id="btn-survival" class="btn primary">Mulai Mode Survival</button>
+      </div>
     </section>
 
     <!-- QUIZ BERJALAN -->
     <section id="quiz" class="card hidden">
       <div class="quiz-header">
-        <div class="quiz-meta" id="meta"></div>
+        <div>
+          <div class="quiz-meta" id="meta"></div>
+          <div class="quiz-meta timer" id="timer"></div>
+        </div>
         <div class="quiz-score">
           Skor: <span id="score">0</span>
         </div>
@@ -70,15 +107,18 @@
       </div>
 
       <div id="questionText" class="question"></div>
+      <!-- ilustrasi soal (opsional, muncul jika ada q.image) -->
+      <img id="questionImage" class="question-image hidden" alt="Ilustrasi soal">
+
       <div id="options" class="options"></div>
 
       <div id="explain" class="explain hidden">
         <strong id="explainTitle"></strong>
         <div id="explainText" class="small" style="margin-top:4px;"></div>
 
-        <div class="btn-row" style="margin-top:8px;">
+        <div class="btn-row">
           <button id="btn-next" class="btn primary">Soal Berikutnya</button>
-          <button id="btn-retry" class="btn danger hidden">Ulangi Level</button>
+          <button id="btn-retry" class="btn danger hidden">Ulangi Level / Survival</button>
           <button id="btn-home" class="btn ghost">Kembali ke Pilihan Kuis</button>
         </div>
       </div>
@@ -88,16 +128,17 @@
     <section id="result" class="card hidden">
       <h2>Hasil Quiz</h2>
       <p id="resultText" class="small" style="margin-top:6px;"></p>
-      <div class="btn-row center" style="margin-top:10px;">
-        <button id="btn-res-retry" class="btn primary">Ulangi Level</button>
+      <div class="btn-row">
+        <button id="btn-res-retry" class="btn primary">Ulangi Level / Survival</button>
         <button id="btn-res-home" class="btn ghost">Kembali ke Pilihan Kuis</button>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    © 2025 — Quiz Kreativitas • Soal diambil dari <span class="code">questions.json</span>
+    © 2025 — Quizzer • Soal diambil dari <span class="code">questions.json</span>
   </footer>
+
 </div>
 
 <script src="app.js" defer></script>
