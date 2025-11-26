@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz – Quiz Kreativitas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="page">
+  <header class="site-header">
+    <div class="header-left">
+      <div class="logo-bubble">Q</div>
+      <div><b>Quiz Mode</b></div>
+    </div>
+    <nav class="header-nav">
+      <a href="index.html">Home</a>
+      <a href="quiz.html" class="active">Quiz</a>
+      <a href="guru.html">Guru</a>
+      <a href="bantuan.html">Bantuan</a>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <!-- PILIH MAPEL & LEVEL -->
+    <section class="card" id="home">
+      <h2>Pilih Kuis</h2>
+      <p class="small" style="margin-top:4px;">
+        Pilih mata pelajaran dan level kesulitan, lalu klik <b>Mulai Quiz</b>.
+      </p>
+
+      <div class="grid-2" style="margin-top:10px;">
+        <div>
+          <label for="category">Mata Pelajaran</label>
+          <select id="category"></select>
+        </div>
+        <div>
+          <label for="level">Level</label>
+          <select id="level">
+            <option>Mudah</option>
+            <option>Lumayan Susah</option>
+            <option>Susah Banget</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:10px;">
+        <button id="btn-start" class="btn primary">Mulai Quiz</button>
+        <button id="btn-random" class="btn ghost">Acak Mapel</button>
+      </div>
+
+      <p class="small" style="margin-top:8px;">
+        💡 Saat kamu mengulang level yang sama, soal akan diacak dan dimulai dari nomor yang berbeda.
+      </p>
+    </section>
+
+    <!-- QUIZ BERJALAN -->
+    <section id="quiz" class="card hidden">
+      <div class="quiz-header">
+        <div class="quiz-meta" id="meta"></div>
+        <div class="quiz-score">
+          Skor: <span id="score">0</span>
+        </div>
+      </div>
+
+      <div class="quiz-meta" id="progressText"></div>
+
+      <div class="progress">
+        <div id="pfill" class="progress-fill"></div>
+      </div>
+
+      <div id="questionText" class="question"></div>
+      <div id="options" class="options"></div>
+
+      <div id="explain" class="explain hidden">
+        <strong id="explainTitle"></strong>
+        <div id="explainText" class="small" style="margin-top:4px;"></div>
+
+        <div class="btn-row" style="margin-top:8px;">
+          <button id="btn-next" class="btn primary">Soal Berikutnya</button>
+          <button id="btn-retry" class="btn danger hidden">Ulangi Level</button>
+          <button id="btn-home" class="btn ghost">Kembali ke Pilihan Kuis</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HASIL -->
+    <section id="result" class="card hidden">
+      <h2>Hasil Quiz</h2>
+      <p id="resultText" class="small" style="margin-top:6px;"></p>
+      <div class="btn-row center" style="margin-top:10px;">
+        <button id="btn-res-retry" class="btn primary">Ulangi Level</button>
+        <button id="btn-res-home" class="btn ghost">Kembali ke Pilihan Kuis</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    © 2025 — Quiz Kreativitas • Soal diambil dari <span class="code">questions.json</span>
+  </footer>
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

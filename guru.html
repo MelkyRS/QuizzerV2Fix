@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mode Guru – Quiz Kreativitas</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="site-header">
+      <div class="header-left">
+        <div class="logo-bubble">Q</div>
+        <div><b>Mode Guru</b></div>
+      </div>
+      <nav class="header-nav">
+        <a href="index.html">Home</a>
+        <a href="quiz.html">Quiz</a>
+        <a href="guru.html" class="active">Guru</a>
+        <a href="bantuan.html">Bantuan</a>
+      </nav>
+    </header>
+
+    <main class="site-main">
+      <!-- LOGIN -->
+      <section id="loginCard" class="card">
+        <h2>Login Mode Guru</h2>
+        <p class="small" style="margin-top:6px;">
+          Username: <b>guru</b> &nbsp; Password: <b>admin</b> (contoh).
+        </p>
+
+        <form id="loginForm" style="margin-top:12px;">
+          <div class="grid-2">
+            <div>
+              <label for="username">Username</label>
+              <input type="text" id="username" autocomplete="off" />
+            </div>
+            <div>
+              <label for="password">Password</label>
+              <input type="password" id="password" />
+            </div>
+          </div>
+
+          <div class="btn-row" style="margin-top:10px;">
+            <button type="submit" class="btn primary">Masuk</button>
+          </div>
+
+          <p id="loginError" class="small" style="margin-top:8px;color:#b91c1c;"></p>
+        </form>
+      </section>
+
+      <!-- PANEL ADMIN -->
+      <section id="adminPanel" class="card hidden">
+        <h2>Panel Guru</h2>
+        <p class="small" style="margin-top:6px;">
+          Di sini guru bisa melihat ringkasan bank soal dari <code>questions.json</code>.
+        </p>
+
+        <p id="questionSummary" class="small" style="margin-top:8px;">
+          Memuat data dari questions.json...
+        </p>
+
+        <div style="margin-top:14px;">
+          <label class="small" for="jsonInput">Impor bank soal (file JSON)</label><br>
+          <input type="file" id="jsonInput" accept=".json" style="margin-top:6px;">
+        </div>
+
+        <div class="btn-row" style="margin-top:12px;">
+          <button id="btnDownloadJson" class="btn primary">Download questions.json</button>
+          <button id="btnBackToLogin" class="btn ghost">Keluar</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      © 2025 — Quiz Kreativitas • Mode Guru
+    </footer>
+  </div>
+
+  <script src="guru.js" defer></script>
+</body>
+</html>
