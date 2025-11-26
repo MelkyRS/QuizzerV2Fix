@@ -1,300 +1,440 @@
-// app.js - Quiz logic untuk index.html
-// Semua soal diambil dari file questions.json di server (GitHub/Vercel)
-// Tidak ada penyimpanan ke localStorage.
+// app.js – Quiz biasa + Mode Survival (50 soal, 1 menit per soal) + identitas siswa + ilustrasi soal
 
-const LEVELS = ["Mudah", "Lumayan Susah", "Susah Banget"];
+document.addEventListener("DOMContentLoaded", () => {
+  const $ = (id) => document.getElementById(id);
 
-let QUESTION_BANK = {};
-let lastStarts = {};
-let lastSetCategory = null;
-let lastSetLevel = null;
+  // SECTION
+  const homeSection = $("home");
+  const quizSection = $("quiz");
+  const resultSection = $("result");
 
-function $(sel) {
-  return document.querySelector(sel);
-}
+  // IDENTITAS SISWA
+  const studentNameInput = $("studentName");
+  const studentClassInput = $("studentClass");
 
-const el = {
-  category: $("#category"),
-  level: $("#level"),
-  btnStart: $("#btn-start"),
-  btnRandom: $("#btn-random"),
-  home: $("#home"),
-  quiz: $("#quiz"),
-  result: $("#result"),
-  meta: $("#meta"),
-  progressText: $("#progressText"),
-  scoreEl: $("#score"),
-  totalQuestions: $("#totalQuestions"),
-  pfill: $("#pfill"),
-  questionText: $("#questionText"),
-  options: $("#options"),
-  explain: $("#explain"),
-  explainTitle: $("#explainTitle"),
-  explainText: $("#explainText"),
-  btnNext: $("#btn-next"),
-  btnRetry: $("#btn-retry"),
-  btnHome: $("#btn-home"),
-  resultText: $("#resultText"),
-  btnResRetry: $("#btn-res-retry"),
-  btnResHome: $("#btn-res-home"),
-};
+  // INPUT & BUTTONS
+  const categorySelect = $("category");
+  const levelSelect = $("level");
+  const btnStart = $("btn-start");
+  const btnRandom = $("btn-random");
+  const btnSurvival = $("btn-survival");
 
-let currentQuestions = [];
-let currentIndex = 0;
-let score = 0;
+  const metaEl = $("meta");
+  const scoreEl = $("score");
+  const progressTextEl = $("progressText");
+  const pfill = $("pfill");
+  const questionTextEl = $("questionText");
+  const questionImageEl = $("questionImage");
+  const optionsEl = $("options");
+  const explainBox = $("explain");
+  const explainTitleEl = $("explainTitle");
+  const explainTextEl = $("explainText");
+  const timerEl = $("timer");
 
-// Helpers show/hide
-function show(node) {
-  node?.classList.remove("hidden");
-}
-function hide(node) {
-  node?.classList.add("hidden");
-}
+  const btnNext = $("btn-next");
+  const btnRetry = $("btn-retry");
+  const btnHome = $("btn-home");
+  const btnResRetry = $("btn-res-retry");
+  const btnResHome = $("btn-res-home");
+  const resultTextEl = $("resultText");
 
-// --- Load question bank dari questions.json ---
-async function loadQuestionBank() {
-  try {
-    const res = await fetch("questions.json?cacheBust=" + Date.now());
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    QUESTION_BANK = await res.json();
-    rebuildCategorySelect();
-  } catch (err) {
-    console.error("Gagal memuat questions.json:", err);
-    alert(
-      "Gagal memuat bank soal dari questions.json.\n" +
-        "Pastikan file questions.json ada di repo yang sama dengan index.html."
-    );
-  }
-}
+  // STATE
+  let questionsData = null;
+  let currentQuestions = [];
+  let currentIndex = 0;
+  let score = 0;
+  let mode = "normal"; // "normal" | "survival"
+  let lastNormalConfig = { category: null, level: null };
 
-// --- Dropdown kategori & level ---
-function rebuildCategorySelect() {
-  if (!el.category) return;
-  el.category.innerHTML = "";
+  let student = { name: "", class: "" };
 
-  const cats = Object.keys(QUESTION_BANK);
-  if (!cats.length) return;
+  // SURVIVAL CONFIG
+  const SURVIVAL_TOTAL = 50;
+  const TIME_PER_QUESTION = 60; // detik
+  let timerId = null;
+  let timeLeft = 0;
+  let questionAnswered = false;
 
-  cats.forEach((cat) => {
-    const o = document.createElement("option");
-    o.value = cat;
-    o.textContent = cat;
-    el.category.appendChild(o);
-  });
-
-  el.category.value = cats[0];
-  updateLevelSelect();
-}
-
-function updateLevelSelect() {
-  const cat = el.category.value;
-  el.level.innerHTML = "";
-  if (!QUESTION_BANK[cat]) return;
-
-  const levelsInCat = Object.keys(QUESTION_BANK[cat] || {});
-
-  LEVELS.forEach((L) => {
-    if (levelsInCat.includes(L)) {
-      const o = document.createElement("option");
-      o.value = L;
-      o.textContent = L;
-      el.level.appendChild(o);
+  // UTILS
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
     }
-  });
+    return a;
+  }
 
-  // Kalau ada level tambahan custom
-  levelsInCat.forEach((L) => {
-    if (!LEVELS.includes(L)) {
-      const o = document.createElement("option");
-      o.value = L;
-      o.textContent = L;
-      el.level.appendChild(o);
+  function showSection(which) {
+    homeSection.classList.add("hidden");
+    quizSection.classList.add("hidden");
+    resultSection.classList.add("hidden");
+    if (which === "home") homeSection.classList.remove("hidden");
+    if (which === "quiz") quizSection.classList.remove("hidden");
+    if (which === "result") resultSection.classList.remove("hidden");
+  }
+
+  // TIMER
+  function startTimer() {
+    stopTimer();
+    if (!timerEl) return;
+    timeLeft = TIME_PER_QUESTION;
+    timerEl.textContent = `Sisa waktu: ${timeLeft} detik`;
+    timerId = setInterval(() => {
+      timeLeft--;
+      if (timeLeft <= 0) {
+        timerEl.textContent = "Waktu habis!";
+        stopTimer();
+        handleTimeOut();
+      } else {
+        timerEl.textContent = `Sisa waktu: ${timeLeft} detik`;
+      }
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
     }
-  });
-}
-
-// --- Utility ---
-function shuffleArray(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function rotateArray(arr, k = 1) {
-  const a = arr.slice();
-  const n = a.length;
-  if (n === 0) return a;
-  k = ((k % n) + n) % n;
-  return a.slice(k).concat(a.slice(0, k));
-}
-
-// --- Quiz Flow ---
-function startQuiz(categoryOverride, levelOverride) {
-  const cat = categoryOverride || el.category.value;
-  const lvl = levelOverride || el.level.value;
-
-  const bank = (QUESTION_BANK[cat] && QUESTION_BANK[cat][lvl]) || [];
-  if (!bank.length) {
-    alert("Belum ada soal di kategori/level ini.");
-    return;
   }
 
-  let shuffled = shuffleArray(bank);
-  const key = `${cat}||${lvl}`;
-  const prevFirst = lastStarts[key];
+  function handleTimeOut() {
+    if (questionAnswered) return;
+    questionAnswered = true;
 
-  // Kalau ulang level, pastikan mulai dari soal berbeda
-  if (prevFirst && shuffled[0].id === prevFirst && shuffled.length > 1) {
-    const k = Math.max(1, Math.floor(Math.random() * shuffled.length));
-    shuffled = rotateArray(shuffled, k);
+    const q = currentQuestions[currentIndex];
+    const correctIndex = q.answer;
+
+    const optionButtons = optionsEl.querySelectorAll(".option");
+    optionButtons.forEach((btn, idx) => {
+      btn.classList.add("disabled");
+      btn.style.cursor = "default";
+      if (idx === correctIndex) {
+        btn.classList.add("correct");
+      }
+    });
+
+    explainBox.classList.remove("hidden");
+    explainTitleEl.textContent = "Waktu habis ⏰";
+    explainTextEl.textContent =
+      (q.explanation || "Kamu kehabisan waktu untuk soal ini.") +
+      " Coba lebih cepat di soal berikutnya.";
   }
 
-  lastStarts[key] = shuffled[0].id;
+  // BANGUN SOAL
+  function buildNormalQuestions(category, level) {
+    const list =
+      questionsData &&
+      questionsData[category] &&
+      Array.isArray(questionsData[category][level])
+        ? questionsData[category][level]
+        : [];
 
-  currentQuestions = shuffled;
-  currentIndex = 0;
-  score = 0;
-  lastSetCategory = cat;
-  lastSetLevel = lvl;
+    return shuffle(list).map((q) => ({
+      ...q,
+      _category: category,
+      _level: level,
+    }));
+  }
 
-  hide(el.home);
-  hide(el.result);
-  show(el.quiz);
+  function buildSurvivalQuestions() {
+    const all = [];
+    if (!questionsData) return all;
+    for (const cat of Object.keys(questionsData)) {
+      const byLevel = questionsData[cat];
+      for (const lvl of Object.keys(byLevel)) {
+        const arr = Array.isArray(byLevel[lvl]) ? byLevel[lvl] : [];
+        arr.forEach((q) => {
+          all.push({
+            ...q,
+            _category: cat,
+            _level: lvl,
+          });
+        });
+      }
+    }
+    const shuffled = shuffle(all);
+    if (shuffled.length <= SURVIVAL_TOTAL) return shuffled;
+    return shuffled.slice(0, SURVIVAL_TOTAL);
+  }
 
-  renderQuestion();
-}
+  function ensureStudentFilled() {
+    const name = (studentNameInput.value || "").trim();
+    const cls = (studentClassInput.value || "").trim();
+    if (!name || !cls) {
+      alert("Isi Nama dan Kelas terlebih dahulu sebelum mulai kuis.");
+      return false;
+    }
+    student = { name, class: cls };
+    // simpan ke localStorage
+    try {
+      localStorage.setItem("quizzerStudent", JSON.stringify(student));
+    } catch (e) {
+      console.warn("Gagal menyimpan identitas siswa ke localStorage", e);
+    }
+    return true;
+  }
 
-function renderQuestion() {
-  const q = currentQuestions[currentIndex];
-  if (!q) return;
+  function loadStudentFromStorage() {
+    try {
+      const raw = localStorage.getItem("quizzerStudent");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.name && parsed.class) {
+        student = parsed;
+        if (studentNameInput) studentNameInput.value = student.name;
+        if (studentClassInput) studentClassInput.value = student.class;
+      }
+    } catch (e) {
+      console.warn("Gagal membaca identitas siswa dari localStorage", e);
+    }
+  }
 
-  el.meta.textContent = `${lastSetCategory} • ${lastSetLevel}`;
-  el.progressText.textContent = `Soal ${currentIndex + 1} / ${
-    currentQuestions.length
-  }`;
+  // MULAI QUIZ
+  function startNormalQuiz(randomCategory = false) {
+    if (!questionsData) {
+      alert("Bank soal belum siap. Pastikan questions.json bisa diakses.");
+      return;
+    }
+    if (!ensureStudentFilled()) return;
 
-  el.scoreEl.textContent = score;
-if (el.totalQuestions) {
-  el.totalQuestions.textContent = `${currentQuestions.length} soal`;
-}
+    let category = categorySelect.value;
+    let level = levelSelect.value;
 
-  const ratio = (currentIndex + 1) / currentQuestions.length;
-  el.pfill.style.width = `${(ratio * 100).toFixed(1)}%`;
+    if (randomCategory) {
+      const cats = Object.keys(questionsData);
+      if (!cats.length) {
+        alert("Belum ada mata pelajaran di questions.json");
+        return;
+      }
+      category = cats[Math.floor(Math.random() * cats.length)];
+      categorySelect.value = category;
+    }
 
-  el.questionText.textContent = q.text;
-  el.options.innerHTML = "";
-  hide(el.explain);
-  hide(el.btnRetry);
+    lastNormalConfig = { category, level };
+    mode = "normal";
+    score = 0;
+    currentIndex = 0;
+    currentQuestions = buildNormalQuestions(category, level);
 
-  q.options.forEach((opt) => {
-    const b = document.createElement("button");
-    b.className = "option";
-    b.textContent = opt.text;
-    b.dataset.opt = opt.id;
-    b.addEventListener("click", () => chooseAnswer(opt.id));
-    el.options.appendChild(b);
-  });
+    if (!currentQuestions.length) {
+      alert("Belum ada soal untuk kombinasi ini.");
+      return;
+    }
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
+    scoreEl.textContent = score;
+    metaEl.textContent = `${category} – Level ${level}`;
+    timerEl.textContent = "";
+    showSection("quiz");
+    renderQuestion();
+  }
 
-function setOptionsDisabled(disabled) {
-  const btns = el.options.querySelectorAll(".option");
-  btns.forEach((b) => {
-    if (disabled) b.classList.add("disabled");
-    else b.classList.remove("disabled");
-  });
-}
+  function startSurvivalQuiz() {
+    if (!questionsData) {
+      alert("Bank soal belum siap. Pastikan questions.json bisa diakses.");
+      return;
+    }
+    if (!ensureStudentFilled()) return;
 
-function chooseAnswer(optId) {
-  const q = currentQuestions[currentIndex];
-  if (!q) return;
+    mode = "survival";
+    score = 0;
+    currentIndex = 0;
+    currentQuestions = buildSurvivalQuestions();
 
-  // kalau penjelasan sudah muncul, cegah double-klik
-  if (!el.explain.classList.contains("hidden")) return;
+    if (!currentQuestions.length) {
+      alert("Belum ada soal di bank soal.");
+      return;
+    }
 
-  const correct = optId === q.answerId;
-  if (correct) score++;
+    scoreEl.textContent = score;
+    metaEl.textContent = "Mode Survival – 50 Soal Campuran";
+    showSection("quiz");
+    renderQuestion();
+  }
 
-  const btns = el.options.querySelectorAll(".option");
-  btns.forEach((b) => {
-    const id = b.dataset.opt;
-    if (id === q.answerId) b.classList.add("correct");
-    if (!correct && id === optId && id !== q.answerId) b.classList.add("wrong");
-  });
+  // RENDER SOAL
+  function renderQuestion() {
+    stopTimer();
+    questionAnswered = false;
 
-  setOptionsDisabled(true);
+    if (currentIndex >= currentQuestions.length) {
+      return showResult();
+    }
 
-  el.explainTitle.textContent = correct ? "Benar! 🎉" : "Salah 😔";
-  el.explainText.textContent = q.explanation || "";
-  show(el.explain);
+    const q = currentQuestions[currentIndex];
+    questionTextEl.textContent = q.question || "(Soal tidak tersedia)";
 
-  el.scoreEl.textContent = score;
-  if (!correct) show(el.btnRetry);
-  else hide(el.btnRetry);
+    // ilustrasi soal (opsional)
+    if (q.image && questionImageEl) {
+      questionImageEl.src = q.image;
+      questionImageEl.classList.remove("hidden");
+    } else if (questionImageEl) {
+      questionImageEl.classList.add("hidden");
+    }
 
-  el.btnNext.textContent =
-    currentIndex + 1 < currentQuestions.length ? "Soal berikutnya" : "Lihat hasil";
-}
+    optionsEl.innerHTML = "";
+    (q.options || []).forEach((opt, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "option";
+      // saran: kalimat soal & opsi sederhana → itu di level konten
+      btn.textContent = opt;
+      btn.dataset.index = idx;
+      optionsEl.appendChild(btn);
+    });
 
-function nextQuestion() {
-  hide(el.explain);
-  setOptionsDisabled(false);
+    const total = currentQuestions.length;
+    const done = currentIndex + 1;
+    progressTextEl.textContent = `Soal ${done} dari ${total}`;
+    pfill.style.width = `${(done - 1) / total * 100}%`;
 
-  if (currentIndex + 1 < currentQuestions.length) {
+    if (mode === "normal") {
+      metaEl.textContent = `${q._category} – Level ${q._level}`;
+      timerEl.textContent = "";
+    } else {
+      metaEl.textContent = `Survival – Soal ${done} / ${total}`;
+      startTimer();
+    }
+
+    explainBox.classList.add("hidden");
+    explainTitleEl.textContent = "";
+    explainTextEl.textContent = "";
+  }
+
+  function handleOptionClick(e) {
+    const target = e.target;
+    if (!target.classList.contains("option")) return;
+    if (questionAnswered) return;
+    questionAnswered = true;
+    stopTimer();
+
+    const q = currentQuestions[currentIndex];
+    const correctIndex = q.answer;
+    const chosenIndex = parseInt(target.dataset.index, 10);
+
+    const optionButtons = optionsEl.querySelectorAll(".option");
+    optionButtons.forEach((btn, idx) => {
+      btn.classList.add("disabled");
+      btn.style.cursor = "default";
+      if (idx === correctIndex) btn.classList.add("correct");
+      if (idx === chosenIndex && idx !== correctIndex) btn.classList.add("wrong");
+    });
+
+    if (chosenIndex === correctIndex) {
+      score++;
+      scoreEl.textContent = score;
+      explainTitleEl.textContent = "Jawaban kamu BENAR 🎉";
+    } else {
+      explainTitleEl.textContent = "Jawaban kamu masih salah 😅";
+    }
+
+    // Penjelasan: agar siswa tahu “kenapa benar/salah”
+    explainTextEl.textContent =
+      q.explanation ||
+      "Belum ada penjelasan khusus untuk soal ini. Guru bisa menambahkan penjelasan di bank soal.";
+
+    explainBox.classList.remove("hidden");
+  }
+
+  function goNext() {
     currentIndex++;
     renderQuestion();
-  } else {
-    showResult();
   }
-}
 
-function showResult() {
-  el.resultText.textContent = `Skor kamu: ${score} / ${currentQuestions.length}`;
-  hide(el.quiz);
-  show(el.result);
-}
-
-function retryLevel() {
-  if (lastSetCategory && lastSetLevel) {
-    startQuiz(lastSetCategory, lastSetLevel);
+  function saveHistory() {
+    const total = currentQuestions.length || 0;
+    const percent = total ? Math.round((score / total) * 100) : 0;
+    const record = {
+      name: student.name,
+      class: student.class,
+      mode,
+      category: mode === "normal" ? lastNormalConfig.category : "Campuran",
+      level: mode === "normal" ? lastNormalConfig.level : "-",
+      score,
+      total,
+      percent,
+      date: new Date().toISOString()
+    };
+    try {
+      const raw = localStorage.getItem("quizzerHistory");
+      const arr = raw ? JSON.parse(raw) : [];
+      arr.push(record);
+      localStorage.setItem("quizzerHistory", JSON.stringify(arr));
+    } catch (e) {
+      console.warn("Gagal menyimpan riwayat kuis ke localStorage", e);
+    }
   }
-}
 
-function backToHome() {
-  hide(el.quiz);
-  hide(el.result);
-  show(el.home);
-}
+  function showResult() {
+    stopTimer();
+    const total = currentQuestions.length || 0;
+    const percent = total ? Math.round((score / total) * 100) : 0;
 
-// --- Event binding ---
-document.addEventListener("DOMContentLoaded", () => {
-  if (!el.category) return;
+    if (mode === "survival") {
+      resultTextEl.textContent = `Mode Survival selesai! ${student.name} (${student.class}), kamu menjawab benar ${score} dari ${total} soal (${percent}%).`;
+    } else {
+      const { category, level } = lastNormalConfig;
+      resultTextEl.textContent = `Kuis ${category} – Level ${level} selesai. ${student.name} (${student.class}), skor kamu: ${score} dari ${total} soal (${percent}%).`;
+    }
 
-  loadQuestionBank();
+    saveHistory();
+    showSection("result");
+  }
 
-  el.category.addEventListener("change", updateLevelSelect);
-  el.btnStart.addEventListener("click", () => startQuiz());
-  el.btnRandom.addEventListener("click", () => {
-    const cats = Object.keys(QUESTION_BANK);
-    if (!cats.length) return;
-    const randCat = cats[Math.floor(Math.random() * cats.length)];
-    const levels = Object.keys(QUESTION_BANK[randCat] || {});
-    const level = LEVELS.find((L) => levels.includes(L)) || levels[0];
+  function retry() {
+    stopTimer();
+    if (mode === "survival") {
+      startSurvivalQuiz();
+    } else {
+      const { category, level } = lastNormalConfig;
+      if (!category || !level) {
+        showSection("home");
+        return;
+      }
+      startNormalQuiz(false);
+    }
+  }
 
-    el.category.value = randCat;
-    updateLevelSelect();
-    el.level.value = level;
-    startQuiz(randCat, level);
-  });
+  function goHome() {
+    stopTimer();
+    showSection("home");
+  }
 
-  el.btnNext.addEventListener("click", nextQuestion);
-  el.btnRetry.addEventListener("click", retryLevel);
-  el.btnHome.addEventListener("click", backToHome);
+  // EVENT
+  optionsEl.addEventListener("click", handleOptionClick);
+  btnNext.addEventListener("click", goNext);
+  btnHome.addEventListener("click", goHome);
+  btnResHome.addEventListener("click", goHome);
+  btnRetry.addEventListener("click", retry);
+  btnResRetry.addEventListener("click", retry);
 
-  el.btnResRetry?.addEventListener("click", retryLevel);
-  el.btnResHome?.addEventListener("click", backToHome);
+  btnStart.addEventListener("click", () => startNormalQuiz(false));
+  btnRandom.addEventListener("click", () => startNormalQuiz(true));
+  btnSurvival.addEventListener("click", startSurvivalQuiz);
+
+  // LOAD questions.json
+  async function loadQuestions() {
+    try {
+      const res = await fetch("questions.json");
+      if (!res.ok) throw new Error("Gagal mengambil questions.json");
+      const data = await res.json();
+      questionsData = data;
+
+      const cats = Object.keys(data || {});
+      categorySelect.innerHTML = "";
+      cats.forEach((cat) => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Gagal memuat questions.json. Pastikan file itu ada dan diakses lewat server (bukan file://).");
+    }
+  }
+
+  // INIT
+  loadStudentFromStorage();
+  loadQuestions();
 });
