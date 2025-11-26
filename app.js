@@ -1,4 +1,5 @@
 // app.js – Quiz biasa + Mode Survival (50 soal, 1 menit per soal) + identitas siswa + ilustrasi soal
+// Versi dengan pembaca soal/opsi lebih fleksibel (menghindari [object Object] & "(Soal tidak tersedia)")
 
 document.addEventListener("DOMContentLoaded", () => {
   const $ = (id) => document.getElementById(id);
@@ -55,7 +56,54 @@ document.addEventListener("DOMContentLoaded", () => {
   let timeLeft = 0;
   let questionAnswered = false;
 
-  // UTILS
+  // ====== HELPER UNTUK BACA STRUKTUR SOAL YANG BERBEDA ======
+
+  // Ambil teks soal dari beberapa kemungkinan field
+  function getQuestionText(q) {
+    if (!q || typeof q !== "object") return "(Soal tidak tersedia)";
+    if (typeof q.question === "string") return q.question;
+    if (typeof q.text === "string") return q.text;
+    if (typeof q.soal === "string") return q.soal;
+    // kalau question adalah objek, mis: {teks:"..."}
+    if (q.question && typeof q.question.teks === "string") return q.question.teks;
+    return "(Soal tidak tersedia)";
+  }
+
+  // Ambil teks opsi dari string atau object
+  function getOptionText(opt, idx) {
+    if (typeof opt === "string") return opt;
+    if (!opt || typeof opt !== "object") {
+      return `Pilihan ${String.fromCharCode(65 + idx)}`;
+    }
+    if (typeof opt.text === "string") return opt.text;
+    if (typeof opt.label === "string") return opt.label;
+    if (typeof opt.teks === "string") return opt.teks;
+    // fallback terakhir
+    return JSON.stringify(opt);
+  }
+
+  // Ambil penjelasan jawaban dari beberapa field
+  function getExplanation(q) {
+    if (!q || typeof q !== "object") return "";
+    return (
+      q.explanation ||
+      q.explain ||
+      q.penjelasan ||
+      ""
+    );
+  }
+
+  // Ambil index jawaban benar (fallback ke 0 kalau tidak ada)
+  function getCorrectIndex(q) {
+    if (!q || typeof q !== "object") return 0;
+    if (typeof q.answer === "number") return q.answer;
+    if (typeof q.correct === "number") return q.correct;
+    if (typeof q.kunci === "number") return q.kunci;
+    return 0;
+  }
+
+  // ====== UTIL LAINNYA ======
+
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -74,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (which === "result") resultSection.classList.remove("hidden");
   }
 
-  // TIMER
+  // ====== TIMER ======
   function startTimer() {
     stopTimer();
     if (!timerEl) return;
@@ -104,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     questionAnswered = true;
 
     const q = currentQuestions[currentIndex];
-    const correctIndex = q.answer;
+    const correctIndex = getCorrectIndex(q);
 
     const optionButtons = optionsEl.querySelectorAll(".option");
     optionButtons.forEach((btn, idx) => {
@@ -118,11 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
     explainBox.classList.remove("hidden");
     explainTitleEl.textContent = "Waktu habis ⏰";
     explainTextEl.textContent =
-      (q.explanation || "Kamu kehabisan waktu untuk soal ini.") +
+      (getExplanation(q) || "Kamu kehabisan waktu untuk soal ini.") +
       " Coba lebih cepat di soal berikutnya.";
   }
 
-  // BANGUN SOAL
+  // ====== BANGUN SOAL ======
   function buildNormalQuestions(category, level) {
     const list =
       questionsData &&
@@ -167,7 +215,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return false;
     }
     student = { name, class: cls };
-    // simpan ke localStorage
     try {
       localStorage.setItem("quizzerStudent", JSON.stringify(student));
     } catch (e) {
@@ -191,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // MULAI QUIZ
+  // ====== MULAI QUIZ ======
   function startNormalQuiz(randomCategory = false) {
     if (!questionsData) {
       alert("Bank soal belum siap. Pastikan questions.json bisa diakses.");
@@ -253,7 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderQuestion();
   }
 
-  // RENDER SOAL
+  // ====== RENDER SOAL ======
   function renderQuestion() {
     stopTimer();
     questionAnswered = false;
@@ -263,7 +310,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const q = currentQuestions[currentIndex];
-    questionTextEl.textContent = q.question || "(Soal tidak tersedia)";
+
+    // teks soal
+    questionTextEl.textContent = getQuestionText(q);
 
     // ilustrasi soal (opsional)
     if (q.image && questionImageEl) {
@@ -273,12 +322,13 @@ document.addEventListener("DOMContentLoaded", () => {
       questionImageEl.classList.add("hidden");
     }
 
+    // opsi
     optionsEl.innerHTML = "";
-    (q.options || []).forEach((opt, idx) => {
+    const opts = Array.isArray(q.options) ? q.options : [];
+    opts.forEach((opt, idx) => {
       const btn = document.createElement("button");
       btn.className = "option";
-      // saran: kalimat soal & opsi sederhana → itu di level konten
-      btn.textContent = opt;
+      btn.textContent = getOptionText(opt, idx);
       btn.dataset.index = idx;
       optionsEl.appendChild(btn);
     });
@@ -286,7 +336,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const total = currentQuestions.length;
     const done = currentIndex + 1;
     progressTextEl.textContent = `Soal ${done} dari ${total}`;
-    pfill.style.width = `${(done - 1) / total * 100}%`;
+    pfill.style.width = `${((done - 1) / total) * 100}%`;
 
     if (mode === "normal") {
       metaEl.textContent = `${q._category} – Level ${q._level}`;
@@ -309,7 +359,7 @@ document.addEventListener("DOMContentLoaded", () => {
     stopTimer();
 
     const q = currentQuestions[currentIndex];
-    const correctIndex = q.answer;
+    const correctIndex = getCorrectIndex(q);
     const chosenIndex = parseInt(target.dataset.index, 10);
 
     const optionButtons = optionsEl.querySelectorAll(".option");
@@ -328,9 +378,8 @@ document.addEventListener("DOMContentLoaded", () => {
       explainTitleEl.textContent = "Jawaban kamu masih salah 😅";
     }
 
-    // Penjelasan: agar siswa tahu “kenapa benar/salah”
     explainTextEl.textContent =
-      q.explanation ||
+      getExplanation(q) ||
       "Belum ada penjelasan khusus untuk soal ini. Guru bisa menambahkan penjelasan di bank soal.";
 
     explainBox.classList.remove("hidden");
